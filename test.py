@@ -1,7 +1,7 @@
 import sqlite3
 import asyncio
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup,KeyboardButton,ReplyKeyboardMarkup
+from aiogram.types import Update, InlineKeyboardButton, InlineKeyboardMarkup,KeyboardButton,ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from aiogram import Bot, Dispatcher
 from aiogram.enums.parse_mode import ParseMode
@@ -244,8 +244,11 @@ async def message_handler(msg: Message):
                                     button = InlineKeyboardButton(f"Кнопка {i}", callback_data=f"btn_{i}")
                                     keyboard.append([button])  # Каждая кнопка — в отдельной строке
 
-                                    reply_markup = InlineKeyboardMarkup(keyboard)
-                                await msg.answer(f"Нажмите на правильный ответ.",reply_markup=reply_markup)
+                                # ✅ Создаём reply_markup ОДИН раз, после цикла
+                                reply_markup = InlineKeyboardMarkup(keyboard)
+
+                                # Отправляем сообщение
+                                await msg.answer("Нажмите на правильный ответ.", reply_markup=reply_markup)
                             answer = True
                             break
                         
