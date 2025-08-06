@@ -1,6 +1,7 @@
 import sqlite3
 import asyncio
 import logging
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import Update, InlineKeyboardButton, InlineKeyboardMarkup,KeyboardButton,ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from aiogram import Bot, Dispatcher
@@ -21,6 +22,7 @@ count_question = 0
 global users
 users = []
 router = Router()
+builder = InlineKeyboardBuilder()
 class connect_db:
     def __init__(self, db_name):
         self.db_name = db_name
@@ -110,7 +112,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text(reply_markup=reply_markup)
             break
-            
+    print(users)
     db.close_db()
 @router.message(Command("continue"))
 @router.message()
@@ -239,13 +241,11 @@ async def message_handler(msg: Message):
                             await msg.answer(f"Вопрос{str(question)}: {db_question}")
                             
                             if db_count_answer !="1":
-                                keyboard = []
+                                
                                 for i in range(1, int(db_count_answer) + 1):
-                                    button = InlineKeyboardButton(f"Кнопка {i}", callback_data=f"btn_{i}")
-                                    keyboard.append([button])  # Каждая кнопка — в отдельной строке
-
+                                    builder.button(text=f"Кнопка {i}", callback_data=f"btn_{i}")
                                 # ✅ Создаём reply_markup ОДИН раз, после цикла
-                                reply_markup = InlineKeyboardMarkup(keyboard)
+                                reply_markup = builder.as_markup()
 
                                 # Отправляем сообщение
                                 await msg.answer("Нажмите на правильный ответ.", reply_markup=reply_markup)
