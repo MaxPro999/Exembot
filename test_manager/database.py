@@ -1,5 +1,11 @@
 # database.py
 import sqlite3
+import logging
+logging.basicConfig(
+    filename='app.log', 
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class Database:
     def __init__(self, db_name="autoservis_users.db"):
@@ -14,7 +20,7 @@ class Database:
                 return cur.fetchall()
             conn.commit()
         except Exception as e:
-            print(f"Ошибка БД: {e}")
+            logging.exception(f"Ошибка БД: {e}")
             return None
         finally:
             conn.close()
@@ -27,7 +33,7 @@ class Database:
             conn.commit()
             return cur.lastrowid
         except Exception as e:
-            print(f"Ошибка выполнения: {e}")
+            logging.exception(f"Ошибка выполнения: {e}")
             return None
         finally:
             conn.close()

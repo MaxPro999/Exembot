@@ -2,7 +2,12 @@
 import hashlib
 import os
 from database import Database
-
+import logging
+logging.basicConfig(
+    filename='app.log', 
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class AuthManager:
     def __init__(self):

@@ -3,6 +3,12 @@ from database import Database
 from utils import read_test_file, generate_unique_code
 import pandas as pd
 import os
+import logging
+logging.basicConfig(
+    filename='app.log', 
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class TestManager:
     def __init__(self, user_id):
@@ -19,6 +25,7 @@ class TestManager:
         try:
             df = read_test_file(filepath)
         except Exception as e:
+            logging.exception(e)
             return None, str(e)
 
         # Создаём запись в таблице тестов
@@ -28,6 +35,7 @@ class TestManager:
             (test_object, test_type, self.user_id, count_questions)
         )
         if not test_id:
+            logging.exception("Ошибка сохранения теста")
             return None, "Ошибка сохранения теста"
 
         # Создаём таблицы вопросов
@@ -36,8 +44,10 @@ class TestManager:
 
     def _create_question_tables(self, test_id, df):
         db = Database()
-        db.execute(f"DROP TABLE IF EXISTS Questions{test_id}")
-        db.execute(f"DROP TABLE IF EXISTS Questions{test_id}_result")
+        if not str(test_id).isdigit():
+            raise ValueError("Invalid test ID")
+        db.execute(f"DROP TABLE IF EXISTS Questions?",(test_id,))
+        db.execute(f"DROP TABLE IF EXISTS Questions?",(test_id,),"_result")
 
         db.execute(f"""
             CREATE TABLE Questions{test_id} (
@@ -66,8 +76,10 @@ class TestManager:
             count_ans = str(row[1])
             true_id = str(row[2])
             answers = "; ".join([f"{i}: {row[i]}" for i in range(3, 3 + int(count_ans))])
+            if not str(test_id).isdigit():
+                raise ValueError("Invalid test ID")
             db.execute(
-                f"INSERT INTO Questions{test_id} (question, count_answer, id_answer_true, answer) VALUES (?, ?, ?, ?)",
+                "INSERT INTO Questions?",(test_id,), "(question, count_answer, id_answer_true, answer) VALUES (?, ?, ?, ?)",
                 (question, count_ans, true_id, answers)
             )
 
@@ -88,7 +100,9 @@ class TestManager:
         return "Результаты экспортированы"
 
     def close_test(self, test_id):
-        self.db.execute(f"DROP TABLE IF EXISTS Questions{test_id}")
+        if not str(test_id).isdigit():
+            raise ValueError("Invalid test ID")
+        self.db.execute("DROP TABLE IF EXISTS Questions?", (test_id,))
         self.db.execute("DELETE FROM Codes_members WHERE idtest = ?", (test_id,))
         return "Тест закрыт"
 

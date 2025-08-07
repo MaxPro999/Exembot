@@ -3,7 +3,12 @@ import tkinter as tk
 from tkinter import messagebox, filedialog, ttk
 from auth import AuthManager
 from test_manager import TestManager
-
+import logging
+logging.basicConfig(
+    filename='app.log', 
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class TestApp:
     def __init__(self):
@@ -15,7 +20,9 @@ class TestApp:
 
     def start_window(self):
         self.destroy_window()
-        self.current_window = tk.Tk()
+        if not hasattr(self, 'root'):
+            self.root = tk.Tk()
+            self.current_window = self.root
         self.current_window.title("Вход")
         self.current_window.geometry("450x450")
         self.current_window.resizable(False, False)
@@ -64,7 +71,9 @@ class TestApp:
     def main_window(self):
         """Основное рабочее окно после авторизации"""
         self.destroy_window()
-        self.current_window = tk.Tk()
+        if not hasattr(self, 'root'):
+            self.root = tk.Tk()
+            self.current_window = self.root
         self.current_window.title("Управление тестами")
         self.current_window.geometry("800x600")
         self.current_window.resizable(False, False)

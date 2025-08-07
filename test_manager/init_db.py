@@ -2,6 +2,12 @@
 import sqlite3
 import os          # Добавлено
 import hashlib
+import logging
+logging.basicConfig(
+    filename='app.log', 
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def create_db():
     conn = sqlite3.connect('autoservis_users.db')
