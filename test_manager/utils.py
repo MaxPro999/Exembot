@@ -1,20 +1,49 @@
-# utils.py
+"""
+Вспомогательные утилиты
+
+Содержит:
+- Функции работы с файлами
+- Генерацию случайных значений
+- Вспомогательные проверки
+"""
+
 import pandas as pd
-import random
+import secrets  # Криптографически безопасный генератор
 import os
-from database import Database
-import secrets
 import logging
-logging.basicConfig(
-    filename='app.log', 
-    level=logging.ERROR,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+from database import Database
+
+# Максимальный размер файла теста (10 МБ)
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 def read_test_file(filepath):
+    """
+    Читает файл теста (CSV/Excel)
+    
+    Поддерживает форматы:
+    - CSV (разделитель ;)
+    - Excel (.xlsx, .xls)
+    
+    Args:
+        filepath: путь к файлу
+        
+    Returns:
+        DataFrame: данные теста
+        
+    Raises:
+        ValueError: при ошибках чтения
+    """
     if not filepath:
         raise ValueError("Файл не выбран")
+    
+    # Проверка размера файла
+    file_size = os.path.getsize(filepath)
+    if file_size > MAX_FILE_SIZE:
+        raise ValueError(f"Файл слишком большой ({file_size} байт). Максимум: {MAX_FILE_SIZE} байт")
+    
+    # Определение формата по расширению
     ext = os.path.splitext(filepath)[1].lower()
+    
     try:
         if ext == ".csv":
             return pd.read_csv(filepath, delimiter=";")
@@ -23,16 +52,5 @@ def read_test_file(filepath):
         else:
             raise ValueError("Неподдерживаемый формат")
     except Exception as e:
-        logging.exception(f"Ошибка чтения файла: {e}")
+        logging.exception("Ошибка чтения файла теста")
         raise Exception(f"Ошибка чтения файла: {e}")
-
-
-def generate_unique_code(id_user, id_test, table="Codes_members"):
-    db = Database()
-    max_attempts = 100
-    for _ in range(max_attempts):
-        code = secrets.token_urlsafe(12)  # 16-символьный безопасный токен
-        result = db.query(f"SELECT 1 FROM {table} WHERE Code = ?", (code,))
-        if not result:
-            return code
-    raise Exception("Не удалось сгенерировать уникальный код")

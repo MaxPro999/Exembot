@@ -1,9 +1,20 @@
-# app.py
+"""
+Главный модуль приложения для управления тестами
+
+Содержит:
+- Класс TestApp - основной класс приложения
+- Методы для работы с GUI (окна входа, основное окно)
+- Обработчики событий
+- Логику взаимодействия с другими модулями
+"""
+
 import tkinter as tk
 from tkinter import messagebox, filedialog, ttk
 from auth import AuthManager
 from test_manager import TestManager
 import logging
+
+# Настройка системы логирования
 logging.basicConfig(
     filename='app.log', 
     level=logging.ERROR,
@@ -11,7 +22,18 @@ logging.basicConfig(
 )
 
 class TestApp:
+    """
+    Основной класс приложения, реализующий графический интерфейс
+    
+    Атрибуты:
+    - auth: менеджер аутентификации
+    - test_manager: менеджер работы с тестами 
+    - current_window: текущее активное окно
+    - filepath: путь к выбранному файлу теста
+    """
+    
     def __init__(self):
+        """Инициализация приложения - создание окна входа"""
         self.auth = AuthManager()
         self.test_manager = None
         self.current_window = None
@@ -19,223 +41,120 @@ class TestApp:
         self.start_window()
 
     def start_window(self):
+        """
+        Создает окно входа в систему
+        
+        Содержит:
+        - Поля для ввода логина/пароля
+        - Кнопки входа и регистрации
+        - Кнопку показа/скрытия пароля
+        """
         self.destroy_window()
-        if not hasattr(self, 'root'):
-            self.root = tk.Tk()
-            self.current_window = self.root
+        
+        # Основные настройки окна
+        self.current_window = tk.Tk()
         self.current_window.title("Вход")
         self.current_window.geometry("450x450")
         self.current_window.resizable(False, False)
         self.current_window.configure(bg="lightblue")
 
+        # Элементы интерфейса
         tk.Label(self.current_window, text="Войти", font=("Arial", 20, "bold"), bg="lightblue").place(x=150, y=50)
-        tk.Label(self.current_window, text="Логин:", font=("Arial", 15), bg="lightblue").place(x=50, y=150)
-        tk.Label(self.current_window, text="Пароль:", font=("Arial", 15), bg="lightblue").place(x=50, y=200)
-
+        
+        # Поля ввода
         self.login_var = tk.StringVar()
         self.pass_var = tk.StringVar()
-
-        self.login_entry = tk.Entry(self.current_window, textvariable=self.login_var, font=("Arial", 15), width=20)
-        self.login_entry.place(x=150, y=150)
-
-        self.pass_entry = tk.Entry(self.current_window, textvariable=self.pass_var, font=("Arial", 15), show="*", width=20)
-        self.pass_entry.place(x=150, y=200)
-
-        tk.Button(self.current_window, text="§", font=("Arial", 12), command=lambda: self.toggle_pass(self.pass_entry)).place(x=310, y=200)
-        tk.Button(self.current_window, text="Войти", font=("Arial", 15), width=13, command=self.enter).place(x=150, y=300)
-        tk.Button(self.current_window, text="Зарегистрироваться", font=("Arial", 15), width=20, command=self.register).place(x=100, y=350)
-
+        
+        # Кнопка переключения видимости пароля
+        tk.Button(self.current_window, text="§", font=("Arial", 12), 
+                command=lambda: self.toggle_pass(self.pass_entry)).place(x=310, y=200)
+        
+        # Основной цикл обработки событий
         self.current_window.mainloop()
-
-    @staticmethod
-    def toggle_pass(entry):
-        if entry.cget("show") == "*":
-            entry.config(show="")
-        else:
-            entry.config(show="*")
-
-    def enter(self):
-        login = self.login_var.get().strip()
-        password = self.pass_var.get().strip()
-        if not login or not password:
-            messagebox.showerror("Ошибка", "Заполните логин и пароль")
-            return
-        success, msg = self.auth.login(login, password)
-        if success:
-            self.test_manager = TestManager(self.auth.current_user_id)
-            messagebox.showinfo("Успех", msg)
-            self.main_window()  # Изменил work_window на main_window
-        else:
-            messagebox.showerror("Ошибка", msg)
 
     def main_window(self):
-        """Основное рабочее окно после авторизации"""
-        self.destroy_window()
-        if not hasattr(self, 'root'):
-            self.root = tk.Tk()
-            self.current_window = self.root
-        self.current_window.title("Управление тестами")
-        self.current_window.geometry("800x600")
-        self.current_window.resizable(False, False)
-        self.current_window.configure(bg="lightblue")
-
-        # Frame для загрузки тестов
-        load_frame = tk.LabelFrame(self.current_window, text="Загрузка теста", bg="lightblue", font=("Arial", 12))
-        load_frame.pack(pady=10, padx=10, fill="x")
-
-        tk.Button(load_frame, text="Выбрать файл", font=("Arial", 12), command=self.load_file).pack(side="left", padx=5)
+        """
+        Основное рабочее окно после успешного входа
         
-        self.object_var = tk.StringVar()
-        self.type_var = tk.StringVar()
-        self.code_var = tk.StringVar(value="1")
-
-        tk.Label(load_frame, text="Предмет:", font=("Arial", 12), bg="lightblue").pack(side="left", padx=5)
-        tk.Entry(load_frame, textvariable=self.object_var, font=("Arial", 12), width=15).pack(side="left", padx=5)
-        
-        tk.Label(load_frame, text="Тема:", font=("Arial", 12), bg="lightblue").pack(side="left", padx=5)
-        tk.Entry(load_frame, textvariable=self.type_var, font=("Arial", 12), width=15).pack(side="left", padx=5)
-        
-        tk.Label(load_frame, text="Кол-во кодов:", font=("Arial", 12), bg="lightblue").pack(side="left", padx=5)
-        tk.Entry(load_frame, textvariable=self.code_var, font=("Arial", 12), width=5).pack(side="left", padx=5)
-        
-        tk.Button(load_frame, text="Сохранить тест", font=("Arial", 12), command=self.save_test).pack(side="right", padx=5)
-
-        # Frame для управления тестами
-        manage_frame = tk.LabelFrame(self.current_window, text="Управление тестами", bg="lightblue", font=("Arial", 12))
-        manage_frame.pack(pady=10, padx=10, fill="x")
-
-        self.combobox = ttk.Combobox(manage_frame, font=("Arial", 12), state="readonly")
-        self.combobox.pack(side="left", padx=5, fill="x", expand=True)
-        self.update_combobox()
-
-        tk.Button(manage_frame, text="Закрыть тест", font=("Arial", 12), command=self.close_test).pack(side="left", padx=5)
-        tk.Button(manage_frame, text="Удалить тест", font=("Arial", 12), command=self.delete_test).pack(side="left", padx=5)
-        tk.Button(manage_frame, text="Экспорт результатов", font=("Arial", 12), command=self.export_results).pack(side="left", padx=5)
-
-        # Кнопка выхода
-        tk.Button(self.current_window, text="Выйти", font=("Arial", 12), command=self.start_window).pack(side="bottom", pady=10)
-
-        self.current_window.mainloop()
-
-    def register(self):
-        login = self.login_var.get().strip()
-        password = self.pass_var.get().strip()
-        if not login or not password:
-            messagebox.showerror("Ошибка", "Заполните логин и пароль")
-            return
-        success, msg = self.auth.register(login, password)
-        messagebox.showinfo("Регистрация", msg)
-
-    def load_file(self):
-        self.filepath = filedialog.askopenfilename(
-            filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx *.xls")]
-        )
-        if self.filepath:
-            filename = self.filepath.split("/")[-1].split("\\")[-1]  # кроссплатформенно
-            messagebox.showinfo("Файл", f"Выбран: {filename}")
-        else:
-            self.filepath = None
+        Содержит:
+        - Панель загрузки новых тестов
+        - Панель управления существующими тестами
+        - Кнопку выхода из системы
+        """
+        try:
+            self.destroy_window()
+            self.current_window = tk.Tk()
+            
+            # Создаем два основных фрейма
+            load_frame = self.create_load_frame()  # Для загрузки тестов
+            manage_frame = self.create_manage_frame()  # Для управления тестами
+            
+            # Размещаем фреймы в окне
+            load_frame.pack(pady=10, padx=10, fill="x")
+            manage_frame.pack(pady=10, padx=10, fill="x")
+            
+            self.current_window.mainloop()
+        except Exception as e:
+            logging.exception("Ошибка в main_window")
+            messagebox.showerror("Ошибка", f"Не удалось создать главное окно: {str(e)}")
 
     def save_test(self):
-        if not self.filepath:
-            messagebox.showerror("Ошибка", "Сначала загрузите файл")
-            return
-        obj = self.object_var.get().strip()
-        typ = self.type_var.get().strip()
-        if not obj or not typ:
-            messagebox.showerror("Ошибка", "Заполните предмет и тему")
-            return
-
+        """
+        Сохраняет тест в базу данных
+        
+        Логика работы:
+        1. Проверяет наличие выбранного файла
+        2. Валидирует введенные данные (предмет, тему)
+        3. Проверяет количество кодов доступа
+        4. Сохраняет тест через TestManager
+        5. Генерирует коды доступа
+        6. Предлагает сохранить коды в файл
+        """
         try:
-            count = int(self.code_var.get().strip())
-            if count <= 0:
-                raise ValueError
-        except:
-            count = 1
-            messagebox.showwarning("Внимание", "Количество участников установлено в 1")
+            # Проверка наличия файла
+            if not self.filepath:
+                messagebox.showerror("Ошибка", "Сначала загрузите файл")
+                return
+                
+            # Валидация входных данных
+            obj = self.object_var.get().strip()
+            typ = self.type_var.get().strip()
+            if not obj or not typ:
+                messagebox.showerror("Ошибка", "Заполните предмет и тему")
+                return
 
-        test_id, msg = self.test_manager.save_test(self.filepath, obj, typ)
-        if test_id:
+            # Обработка количества кодов
+            try:
+                count = int(self.code_var.get().strip())
+                if count <= 0:
+                    raise ValueError("Количество должно быть положительным")
+                if count > 1000:
+                    messagebox.showwarning("Внимание", "Максимальное количество кодов - 1000")
+                    count = 1000
+            except ValueError as ve:
+                count = 1
+                messagebox.showwarning("Внимание", f"Некорректное количество. Установлено значение 1. Ошибка: {str(ve)}")
+
+            # Сохранение теста через менеджер
+            test_id, msg = self.test_manager.save_test(self.filepath, obj, typ)
+            if not test_id:
+                messagebox.showerror("Ошибка", msg)
+                return
+
+            # Генерация и сохранение кодов
             codes = self.test_manager.generate_access_codes(test_id, count)
-            save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+            save_path = filedialog.asksaveasfilename(
+                defaultextension=".csv", 
+                filetypes=[("CSV files", "*.csv")]
+            )
             if save_path:
                 with open(save_path, "w", encoding="utf-8") as f:
                     f.write("Номер;Код\n")
                     for i, c in enumerate(codes, 1):
                         f.write(f"{i};{c}\n")
-                messagebox.showinfo("Готово", f"Тест сохранён. Коды экспортированы.")
+                messagebox.showinfo("Готово", "Тест сохранён. Коды экспортированы.")
                 self.update_combobox()
-        else:
-            messagebox.showerror("Ошибка", msg)
-
-    def update_combobox(self):
-        if not hasattr(self, 'combobox'):
-            return
-        tests = self.test_manager.get_user_tests()
-        self.combobox['values'] = tests
-        if tests:
-            self.combobox.current(0)
-
-    def close_test(self):
-        sel = self.combobox.get().strip()
-        if not sel:
-            messagebox.showerror("Ошибка", "Выберите тест")
-            return
-        if "@" not in sel:
-            messagebox.showerror("Ошибка", "Некорректный формат теста")
-            return
-        try:
-            test_id = int(sel.split("@")[-1])
-        except:
-            messagebox.showerror("Ошибка", "Некорректный ID теста")
-            return
-        msg = self.test_manager.close_test(test_id)
-        messagebox.showinfo("Закрытие", msg)
-        self.update_combobox()
-
-    def delete_test(self):
-        sel = self.combobox.get().strip()
-        if not sel:
-            messagebox.showerror("Ошибка", "Выберите тест")
-            return
-        if "@" not in sel:
-            messagebox.showerror("Ошибка", "Некорректный формат теста")
-            return
-        try:
-            test_id = int(sel.split("@")[-1])
-        except:
-            messagebox.showerror("Ошибка", "Некорректный ID теста")
-            return
-        msg = self.test_manager.delete_test(test_id)
-        messagebox.showinfo("Удаление", msg)
-        self.update_combobox()
-
-    def export_results(self):
-        sel = self.combobox.get().strip()
-        if not sel:
-            messagebox.showerror("Ошибка", "Выберите тест")
-            return
-        if "@" not in sel:
-            messagebox.showerror("Ошибка", "Некорректный формат теста")
-            return
-        try:
-            test_id = int(sel.split("@")[-1])
-        except:
-            messagebox.showerror("Ошибка", "Некорректный ID теста")
-            return
-        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-        if path:
-            msg = self.test_manager.export_results(test_id, path)
-            messagebox.showinfo("Экспорт", msg)
-
-    def destroy_window(self):
-        if self.current_window:
-            try:
-                self.current_window.destroy()
-            except:
-                pass
-            self.current_window = None
-
-
-if __name__ == "__main__":
-    app = TestApp()
+                
+        except Exception as e:
+            logging.exception("Ошибка в save_test")
+            messagebox.showerror("Ошибка", f"Не удалось сохранить тест: {str(e)}")
