@@ -157,21 +157,27 @@ async def callback_query_handler(callback_query: types.CallbackQuery):
         db_id = row[0]
         db_question = row[1]
         db_count_answer = row[2]
-
+        db_id_answer_true = row[3]
+        db_answer = row[4]
         # Если нашли следующий вопрос и он в пределах количества
         if question == db_id and question <= count_question:
-            # Создаём новую клавиатуру (важно: не глобальную!)
-            builder = InlineKeyboardBuilder()
-            for i in range(1, int(db_count_answer) + 1):
-                builder.button(text=f"Вариант {i}", callback_data=f"btn_{i}")
-            builder.adjust(1)  # Каждая кнопка — на новой строке
+            if db_count_answer != "1":
+                print(db_question)
+                print(db_answer.split(';'))
+                # Создаём новую клавиатуру (важно: не глобальную!)
+                builder = InlineKeyboardBuilder()
+                for i in range(1, int(db_count_answer) + 1):
+                    builder.button(text=f"Вариант {i}: {str(db_answer)}", callback_data=f"btn_{i}")
+                builder.adjust(1)  # Каждая кнопка — на новой строке
 
-            # Отправляем вопрос с кнопками
-            await callback_query.message.answer(
-                f"Вопрос {question}: {db_question}",
-                reply_markup=builder.as_markup()
-            )
-
+                # Отправляем вопрос с кнопками
+                await callback_query.message.answer(
+                    f"Вопрос {question}: {db_question}",
+                    reply_markup=builder.as_markup()
+                )
+            else:
+                await callback_query.message.answer(
+                    f"Вопрос {question}: {db_question}")
             # Обновляем, что пользователь ожидает ответ
             users[user_index][4] = True
             found_next = True
@@ -290,9 +296,12 @@ async def message_handler(msg: Message):
                 # Проверка ответа
                 is_correct = False
                 if db_count_answer != "1":
-                    # Это вопрос с выбором — ответ должен быть числом
-                    if str(db_id_answer_true).lower() == msgnew.lower():
-                        is_correct = True
+                    print(db_answer.split(';'))
+                    builder = InlineKeyboardBuilder() 
+                    for i in range(1, int(db_count_answer) + 1):
+                        builder.button(text=f"Вариант {i}: {str(db_answer)}", callback_data=f"btn_{i}")
+                    builder.adjust(1)
+                    await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:
                     # Это открытый вопрос — сравниваем текст
                     if str(db_answer).lower() == msgnew.lower():
@@ -323,15 +332,17 @@ async def message_handler(msg: Message):
             db_id = row[0]
             db_question = row[1]
             db_count_answer = row[2]
-
+            db_id_answer_true = row[3]
+            db_answer = row[4]
             if question == db_id:
                 await msg.answer(f"Вопрос {question}: {db_question}")
 
                 # Если вопрос с выбором — показываем кнопки
                 if db_count_answer != "1":
+                    db_answer=db_answer.split('; \n')
                     builder = InlineKeyboardBuilder()  # НОВЫЙ builder!
                     for i in range(1, int(db_count_answer) + 1):
-                        builder.button(text=f"Вариант {i}", callback_data=f"btn_{i}")
+                        builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
                     builder.adjust(1)
                     await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:
