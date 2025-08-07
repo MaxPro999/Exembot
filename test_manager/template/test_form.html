@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Создание теста</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Создание теста</h1>
+            <a href="{{ url_for('main') }}" class="btn">На главную</a>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="test-form-section">
+            <h2>Информация о тесте</h2>
+            <p>Файл: {{ filename }}</p>
+            
+            {% if not saved %}
+            <form method="POST" action="{{ url_for('save_test') }}">
+                <div class="form-group">
+                    <label for="object">Предмет:</label>
+                    <input type="text" id="object" name="object" required>
+                </div>
+                <div class="form-group">
+                    <label for="type">Тема:</label>
+                    <input type="text" id="type" name="type" required>
+                </div>
+                <div class="form-group">
+                    <label for="count">Количество кодов доступа:</label>
+                    <input type="number" id="count" name="count" value="1" min="1" max="1000">
+                </div>
+                <button type="submit" class="btn">Сохранить тест</button>
+            </form>
+            {% else %}
+            <div class="codes-section">
+                <h3>Сгенерированные коды доступа</h3>
+                <table class="codes-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Код</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i, code in enumerate(codes, 1) %}
+                        <tr>
+                            <td>{{ i }}</td>
+                            <td>{{ code }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <a href="{{ url_for('download_codes') }}" class="btn">Скачать коды</a>
+                <a href="{{ url_for('main') }}" class="btn btn-secondary">На главную</a>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>

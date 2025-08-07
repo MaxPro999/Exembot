@@ -7,12 +7,11 @@
 - Экспорт результатов
 - Управление вопросами тестов
 """
-
+# test_manager.py
 from database import Database
-from utils import read_test_file, generate_unique_code
+from utils import read_test_file, generate_unique_code  # Этот импорт теперь должен работать
 import pandas as pd
 import logging
-import re
 
 class TestManager:
     """

@@ -1,160 +1,139 @@
-"""
-Главный модуль приложения для управления тестами
-
-Содержит:
-- Класс TestApp - основной класс приложения
-- Методы для работы с GUI (окна входа, основное окно)
-- Обработчики событий
-- Логику взаимодействия с другими модулями
-"""
-
-import tkinter as tk
-from tkinter import messagebox, filedialog, ttk
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from auth import AuthManager
 from test_manager import TestManager
-import logging
+import os
+from werkzeug.utils import secure_filename
 
-# Настройка системы логирования
-logging.basicConfig(
-    filename='app.log', 
-    level=logging.ERROR,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
-class TestApp:
-    """
-    Основной класс приложения, реализующий графический интерфейс
+# Инициализация менеджеров
+auth_manager = AuthManager()
+test_manager = None
+
+@app.route('/')
+def home():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return redirect(url_for('main'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        login = request.form['login']
+        password = request.form['password']
+        success, msg = auth_manager.login(login, password)
+        if success:
+            session['user_id'] = auth_manager.current_user_id
+            global test_manager
+            test_manager = TestManager(session['user_id'])
+            flash(msg, 'success')
+            return redirect(url_for('main'))
+        flash(msg, 'danger')
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        login = request.form['login']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('register'))
+        
+        success, msg = auth_manager.register(login, password)
+        if success:
+            flash(msg, 'success')
+            return redirect(url_for('login'))
+        flash(msg, 'danger')
+    return render_template('register.html')
+
+@app.route('/main')
+def main():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     
-    Атрибуты:
-    - auth: менеджер аутентификации
-    - test_manager: менеджер работы с тестами 
-    - current_window: текущее активное окно
-    - filepath: путь к выбранному файлу теста
-    """
+    tests = test_manager.get_user_tests()
+    return render_template('main.html', tests=tests)
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        flash('Файл не выбран', 'danger')
+        return redirect(url_for('main'))
     
-    def __init__(self):
-        """Инициализация приложения - создание окна входа"""
-        self.auth = AuthManager()
-        self.test_manager = None
-        self.current_window = None
-        self.filepath = None
-        self.start_window()
-
-    def start_window(self):
-        """
-        Создает окно входа в систему
+    file = request.files['file']
+    if file.filename == '':
+        flash('Файл не выбран', 'danger')
+        return redirect(url_for('main'))
+    
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
         
-        Содержит:
-        - Поля для ввода логина/пароля
-        - Кнопки входа и регистрации
-        - Кнопку показа/скрытия пароля
-        """
-        self.destroy_window()
-        
-        # Основные настройки окна
-        self.current_window = tk.Tk()
-        self.current_window.title("Вход")
-        self.current_window.geometry("450x450")
-        self.current_window.resizable(False, False)
-        self.current_window.configure(bg="lightblue")
+        session['current_file'] = filepath
+        return render_template('test_form.html', filename=filename)
+    
+    return redirect(url_for('main'))
 
-        # Элементы интерфейса
-        tk.Label(self.current_window, text="Войти", font=("Arial", 20, "bold"), bg="lightblue").place(x=150, y=50)
-        
-        # Поля ввода
-        self.login_var = tk.StringVar()
-        self.pass_var = tk.StringVar()
-        
-        # Кнопка переключения видимости пароля
-        tk.Button(self.current_window, text="§", font=("Arial", 12), 
-                command=lambda: self.toggle_pass(self.pass_entry)).place(x=310, y=200)
-        
-        # Основной цикл обработки событий
-        self.current_window.mainloop()
+@app.route('/save_test', methods=['POST'])
+def save_test():
+    if 'current_file' not in session:
+        flash('Сначала загрузите файл', 'danger')
+        return redirect(url_for('main'))
+    
+    test_object = request.form['object']
+    test_type = request.form['type']
+    count = int(request.form.get('count', 1))
+    
+    test_id, msg = test_manager.save_test(session['current_file'], test_object, test_type)
+    if test_id:
+        codes = test_manager.generate_access_codes(test_id, count)
+        session['generated_codes'] = codes
+        flash(msg, 'success')
+        return render_template('test_form.html', codes=codes, saved=True)
+    
+    flash(msg, 'danger')
+    return redirect(url_for('main'))
 
-    def main_window(self):
-        """
-        Основное рабочее окно после успешного входа
+@app.route('/download_codes')
+def download_codes():
+    codes = session.get('generated_codes', [])
+    if not codes:
+        flash('Нет кодов для скачивания', 'danger')
+        return redirect(url_for('main'))
+    
+    # Создаем временный файл
+    import tempfile
+    import csv
+    
+    fd, path = tempfile.mkstemp()
+    try:
+        with os.fdopen(fd, 'w', newline='', encoding='utf-8') as tmp:
+            writer = csv.writer(tmp, delimiter=';')
+            writer.writerow(['Номер', 'Код'])
+            for i, code in enumerate(codes, 1):
+                writer.writerow([i, code])
         
-        Содержит:
-        - Панель загрузки новых тестов
-        - Панель управления существующими тестами
-        - Кнопку выхода из системы
-        """
-        try:
-            self.destroy_window()
-            self.current_window = tk.Tk()
-            
-            # Создаем два основных фрейма
-            load_frame = self.create_load_frame()  # Для загрузки тестов
-            manage_frame = self.create_manage_frame()  # Для управления тестами
-            
-            # Размещаем фреймы в окне
-            load_frame.pack(pady=10, padx=10, fill="x")
-            manage_frame.pack(pady=10, padx=10, fill="x")
-            
-            self.current_window.mainloop()
-        except Exception as e:
-            logging.exception("Ошибка в main_window")
-            messagebox.showerror("Ошибка", f"Не удалось создать главное окно: {str(e)}")
+        return send_file(
+            path,
+            as_attachment=True,
+            download_name='access_codes.csv',
+            mimetype='text/csv'
+        )
+    finally:
+        os.remove(path)
 
-    def save_test(self):
-        """
-        Сохраняет тест в базу данных
-        
-        Логика работы:
-        1. Проверяет наличие выбранного файла
-        2. Валидирует введенные данные (предмет, тему)
-        3. Проверяет количество кодов доступа
-        4. Сохраняет тест через TestManager
-        5. Генерирует коды доступа
-        6. Предлагает сохранить коды в файл
-        """
-        try:
-            # Проверка наличия файла
-            if not self.filepath:
-                messagebox.showerror("Ошибка", "Сначала загрузите файл")
-                return
-                
-            # Валидация входных данных
-            obj = self.object_var.get().strip()
-            typ = self.type_var.get().strip()
-            if not obj or not typ:
-                messagebox.showerror("Ошибка", "Заполните предмет и тему")
-                return
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
-            # Обработка количества кодов
-            try:
-                count = int(self.code_var.get().strip())
-                if count <= 0:
-                    raise ValueError("Количество должно быть положительным")
-                if count > 1000:
-                    messagebox.showwarning("Внимание", "Максимальное количество кодов - 1000")
-                    count = 1000
-            except ValueError as ve:
-                count = 1
-                messagebox.showwarning("Внимание", f"Некорректное количество. Установлено значение 1. Ошибка: {str(ve)}")
-
-            # Сохранение теста через менеджер
-            test_id, msg = self.test_manager.save_test(self.filepath, obj, typ)
-            if not test_id:
-                messagebox.showerror("Ошибка", msg)
-                return
-
-            # Генерация и сохранение кодов
-            codes = self.test_manager.generate_access_codes(test_id, count)
-            save_path = filedialog.asksaveasfilename(
-                defaultextension=".csv", 
-                filetypes=[("CSV files", "*.csv")]
-            )
-            if save_path:
-                with open(save_path, "w", encoding="utf-8") as f:
-                    f.write("Номер;Код\n")
-                    for i, c in enumerate(codes, 1):
-                        f.write(f"{i};{c}\n")
-                messagebox.showinfo("Готово", "Тест сохранён. Коды экспортированы.")
-                self.update_combobox()
-                
-        except Exception as e:
-            logging.exception("Ошибка в save_test")
-            messagebox.showerror("Ошибка", f"Не удалось сохранить тест: {str(e)}")
+if __name__ == '__main__':
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    app.run(debug=True)
