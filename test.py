@@ -162,12 +162,11 @@ async def callback_query_handler(callback_query: types.CallbackQuery):
         # Если нашли следующий вопрос и он в пределах количества
         if question == db_id and question <= count_question:
             if db_count_answer != "1":
-                print(db_question)
-                print(db_answer.split(';'))
+                db_answer=db_answer.split('; \n')
                 # Создаём новую клавиатуру (важно: не глобальную!)
                 builder = InlineKeyboardBuilder()
                 for i in range(1, int(db_count_answer) + 1):
-                    builder.button(text=f"Вариант {i}: {str(db_answer)}", callback_data=f"btn_{i}")
+                    builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
                 builder.adjust(1)  # Каждая кнопка — на новой строке
 
                 # Отправляем вопрос с кнопками
@@ -296,10 +295,10 @@ async def message_handler(msg: Message):
                 # Проверка ответа
                 is_correct = False
                 if db_count_answer != "1":
-                    print(db_answer.split(';'))
+                    db_answer=db_answer.split('; \n')
                     builder = InlineKeyboardBuilder() 
                     for i in range(1, int(db_count_answer) + 1):
-                        builder.button(text=f"Вариант {i}: {str(db_answer)}", callback_data=f"btn_{i}")
+                        builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
                     builder.adjust(1)
                     await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:
