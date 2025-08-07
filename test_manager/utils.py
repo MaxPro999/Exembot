@@ -1,25 +1,24 @@
 # utils.py
 import pandas as pd
-import secrets  # Для безопасной генерации кодов
+import secrets
 import os
 import logging
 from database import Database
 
-# Максимальный размер файла (10 МБ)
-MAX_FILE_SIZE = 10 * 1024 * 1024
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 def read_test_file(filepath):
     """
-    Читает файл теста (CSV/Excel)
+    Чтение файла теста (CSV/Excel)
     
     Args:
-        filepath: путь к файлу теста
+        filepath: путь к файлу
         
     Returns:
         DataFrame: данные теста
         
     Raises:
-        ValueError: при ошибках чтения файла
+        ValueError: при ошибках чтения
     """
     if not filepath:
         raise ValueError("Файл не выбран")
@@ -43,7 +42,7 @@ def read_test_file(filepath):
 
 def generate_unique_code(id_user, id_test, table="Codes_members"):
     """
-    Генерирует уникальный код доступа
+    Генерация уникального кода доступа
     
     Args:
         id_user: ID пользователя
@@ -51,7 +50,7 @@ def generate_unique_code(id_user, id_test, table="Codes_members"):
         table: таблица для проверки уникальности
         
     Returns:
-        str: уникальный код доступа
+        str: уникальный код
         
     Raises:
         Exception: если не удалось сгенерировать уникальный код
@@ -60,10 +59,7 @@ def generate_unique_code(id_user, id_test, table="Codes_members"):
     max_attempts = 100
     
     for _ in range(max_attempts):
-        # Генерируем безопасный случайный код
-        code = secrets.token_urlsafe(16)[:16]  # Берем первые 16 символов
-        
-        # Проверяем уникальность кода в базе
+        code = secrets.token_urlsafe(16)[:16]  # Генерация 16-символьного кода
         result = db.query(f"SELECT 1 FROM {table} WHERE Code = ?", (code,))
         if not result:
             return code

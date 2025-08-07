@@ -1,11 +1,13 @@
+# app.py
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from auth import AuthManager
 from test_manager import TestManager
 import os
 from werkzeug.utils import secure_filename
-
+import tempfile
+import csv
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 
@@ -75,7 +77,6 @@ def upload_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
         session['current_file'] = filepath
         return render_template('test_form.html', filename=filename)
     
@@ -108,9 +109,7 @@ def download_codes():
         flash('Нет кодов для скачивания', 'danger')
         return redirect(url_for('main'))
     
-    # Создаем временный файл
-    import tempfile
-    import csv
+
     
     fd, path = tempfile.mkstemp()
     try:
