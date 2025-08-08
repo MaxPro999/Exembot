@@ -52,15 +52,25 @@ class TestManager:
                 answer TEXT NOT NULL
             )
         """)
+        self.db.execute(f"""
+            CREATE TABLE Questions{test_id}_result (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code_member INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                count_answer TEXT NOT NULL,
+                id_answer_true TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                FIO TEXT NOT NULL
+            )
+        """)
 
         data = []
         for _, row in df.iterrows():
-            question = row.iloc[0]
-            count_ans = str(row.iloc[1])
-            true_id = str(row.iloc[2])
-            # Формируем строку ответов: "1: ответ1; 2: ответ2; ..."
-            answers = "; ".join([f"{i-2}: {row.iloc[i]}" for i in range(3, 3 + int(count_ans))])
-            data.append((question, count_ans, true_id, answers))
+            question = row['question']
+            count_ans = int(row['answer_count'])
+            true_id = int(row['correct_answer'])
+            answers = "; ".join([f"{i}: {row[f'answer{i}']}" for i in range(1, count_ans + 1)])
+            data.append((question, str(count_ans), str(true_id), answers))
         
         # Указываем столбцы явно — исключаем `id`
         self.db.executemany(
