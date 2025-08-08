@@ -36,5 +36,20 @@
             </ul>
         </section>
     </div>
+    <div class="download-template">
+        <h3>Скачать шаблон теста:</h3>
+        <a href="{{ url_for('download_template', file_type='csv') }}" class="btn">CSV</a>
+        <a href="{{ url_for('download_template', file_type='xlsx') }}" class="btn">Excel</a>
+        <div class="template-instructions">
+            <p><strong>Инструкция по заполнению:</strong></p>
+            <ol>
+                <li>question - текст вопроса</li>
+                <li>answer_count - количество вариантов ответов (1-4)</li>
+                <li>correct_answer - номер правильного ответа</li>
+                <li>answer1...answer4 - тексты ответов</li>
+            </ol>
+        </div>
+    </div>
+    
 </body>
 </html>

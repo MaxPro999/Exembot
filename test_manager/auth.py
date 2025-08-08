@@ -22,7 +22,6 @@ class AuthManager:
         ''')
 
     def login(self, login, password):
-        """Аутентификация пользователя"""
         try:
             user = self.db.query(
                 "SELECT id, password_hash, salt FROM users WHERE login = ?", 
@@ -44,7 +43,7 @@ class AuthManager:
             )
             
             if input_hash == stored_hash:
-                self.current_user_id = user['id']
+                self.current_user_id = user['id']  # Важно: устанавливаем current_user_id
                 return True, "Добро пожаловать!"
             return False, "Неверный пароль"
         except Exception as e:

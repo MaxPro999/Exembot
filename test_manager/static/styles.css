@@ -155,3 +155,22 @@ header {
         margin-bottom: 10px;
     }
 }
+.download-template {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    margin: 20px 0;
+    border: 1px solid #dee2e6;
+}
+
+.template-instructions {
+    margin-top: 15px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    border-left: 4px solid #007bff;
+}
+
+.template-instructions ol {
+    margin: 10px 0 0 20px;
+}
