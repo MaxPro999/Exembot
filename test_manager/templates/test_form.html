@@ -50,9 +50,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for i, code in enumerate(codes, 1) %}
+                        {% for code in codes %}
                         <tr>
-                            <td>{{ i }}</td>
+                            <td>{{ loop.index }}</td>
                             <td>{{ code }}</td>
                         </tr>
                         {% endfor %}

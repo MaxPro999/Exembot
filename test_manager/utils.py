@@ -33,66 +33,68 @@ def read_test_file(filepath):
     if not os.path.exists(filepath):
         raise ValueError("Файл не существует")
     
-    # Проверка размера файла (не более 10MB)
+    # Проверка размера файла
     file_size = os.path.getsize(filepath)
-    if file_size > 10 * 1024 * 1024:  # 10MB
+    if file_size > MAX_FILE_SIZE:
         raise ValueError("Файл слишком большой (максимум 10MB)")
     
-    # Определение формата файла
+    # Определение расширения
     ext = os.path.splitext(filepath)[1].lower()
     
     try:
-        # Чтение файла в зависимости от формата
+        # Чтение файла
         if ext == '.csv':
-            df = pd.read_csv(filepath, delimiter=';')
+            df = pd.read_csv(filepath, delimiter=';', encoding='utf-8')
         elif ext in ('.xlsx', '.xls'):
             df = pd.read_excel(filepath)
         else:
             raise ValueError("Поддерживаются только CSV и Excel файлы")
         
+        # Приведение имён столбцов к нижнему регистру
+        df.columns = df.columns.str.strip().str.lower()
+
         # Проверка обязательных колонок
         required_columns = ['question', 'answer_count', 'correct_answer']
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
             raise ValueError(f"Отсутствуют обязательные колонки: {', '.join(missing_cols)}")
         
-        # Проверка каждой строки
+        # Преобразуем числовые поля
+        df['answer_count'] = pd.to_numeric(df['answer_count'], errors='coerce')
+        df['correct_answer'] = pd.to_numeric(df['correct_answer'], errors='coerce')
+
         for idx, row in df.iterrows():
             # Проверка вопроса
             if not isinstance(row['question'], str) or not row['question'].strip():
                 raise ValueError(f"Строка {idx+1}: Вопрос должен быть непустым текстом")
             
             # Проверка количества ответов
-            try:
-                answer_count = int(row['answer_count'])
-                if not 1 <= answer_count:
-                    raise ValueError
-            except (ValueError, TypeError):
-                raise ValueError(f"Строка {idx+1}: Количество ответов должно быть целым числом больше 0")
+            if pd.isna(row['answer_count']) or not (1 <= row['answer_count'] <= 4):
+                raise ValueError(f"Строка {idx+1}: Количество ответов должно быть от 1 до 4")
+
+            answer_count = int(row['answer_count'])
             
             # Проверка правильного ответа
-            try:
-                correct = int(row['correct_answer'])
-                if not 1 <= correct <= answer_count:
-                    raise ValueError
-            except (ValueError, TypeError):
+            if pd.isna(row['correct_answer']) or not (1 <= row['correct_answer'] <= answer_count):
                 raise ValueError(f"Строка {idx+1}: Номер правильного ответа должен быть от 1 до {answer_count}")
-            
+
             # Проверка текстов ответов
             for i in range(1, answer_count + 1):
                 col = f'answer{i}'
-                if col not in df.columns or not isinstance(row[col], str) or not row[col].strip():
+                if col not in df.columns:
+                    raise ValueError(f"Строка {idx+1}: Отсутствует колонка {col}")
+                if not isinstance(row[col], str) or not row[col].strip():
                     raise ValueError(f"Строка {idx+1}: Ответ {i} должен быть непустым текстом")
         
         return df
     
     except pd.errors.EmptyDataError:
         raise ValueError("Файл пустой или содержит некорректные данные")
-    except pd.errors.ParserError:
-        raise ValueError("Ошибка чтения файла. Проверьте формат и кодировку")
+    except pd.errors.ParserError as e:
+        raise ValueError(f"Ошибка чтения файла. Проверьте формат и кодировку: {str(e)}")
     except Exception as e:
         raise ValueError(f"Ошибка обработки файла: {str(e)}")
-    
+
 
 def generate_unique_code(id_user, id_test, table="Codes_members"):
     """
@@ -113,7 +115,8 @@ def generate_unique_code(id_user, id_test, table="Codes_members"):
     max_attempts = 100
     
     for _ in range(max_attempts):
-        code = secrets.token_urlsafe(16)[:16]  # Генерация 16-символьного кода
+        # Генерация 16-символьного безопасного кода
+        code = secrets.token_urlsafe(16)[:16]
         result = db.query(f"SELECT 1 FROM {table} WHERE Code = ?", (code,))
         if not result:
             return code

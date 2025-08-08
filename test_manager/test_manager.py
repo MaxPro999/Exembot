@@ -55,14 +55,16 @@ class TestManager:
 
         data = []
         for _, row in df.iterrows():
-            question = row[0]
-            count_ans = str(row[1])
-            true_id = str(row[2])
-            answers = "; ".join([f"{i}: {row[i]}" for i in range(3, 3 + int(count_ans))])
+            question = row.iloc[0]
+            count_ans = str(row.iloc[1])
+            true_id = str(row.iloc[2])
+            # Формируем строку ответов: "1: ответ1; 2: ответ2; ..."
+            answers = "; ".join([f"{i-2}: {row.iloc[i]}" for i in range(3, 3 + int(count_ans))])
             data.append((question, count_ans, true_id, answers))
         
+        # Указываем столбцы явно — исключаем `id`
         self.db.executemany(
-            f"INSERT INTO Questions{test_id} VALUES (?, ?, ?, ?)",
+            f"INSERT INTO Questions{test_id} (question, count_answer, id_answer_true, answer) VALUES (?, ?, ?, ?)",
             data
         )
 

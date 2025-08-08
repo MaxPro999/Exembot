@@ -37,3 +37,19 @@ class Database:
         finally:
             if conn:
                 conn.close()
+
+    def executemany(self, sql, params_list):
+        """Выполняет команду для списка параметров (например, массовая вставка)"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_name)
+            cur = conn.cursor()
+            cur.executemany(sql, params_list)
+            conn.commit()
+            return cur.lastrowid  # вернёт ID последней вставленной строки
+        except Exception as e:
+            logging.error(f"Executemany error: {str(e)}")
+            return None
+        finally:
+            if conn:
+                conn.close()
