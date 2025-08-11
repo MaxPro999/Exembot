@@ -338,10 +338,26 @@ async def message_handler(msg: Message):
 
                 # Если вопрос с выбором — показываем кнопки
                 if db_count_answer != "1":
-                    db_answer=db_answer.split('; \n')
-                    builder = InlineKeyboardBuilder()  # НОВЫЙ builder!
-                    for i in range(1, int(db_count_answer) + 1):
-                        builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
+                    # Разделяем по точке с запятой, убираем пробелы и пустые строки
+                    answers_list = [ans.strip() for ans in db_answer.split(';') if ans.strip()]
+
+                    # Логируем для проверки
+                    print(f"[DEBUG] db_count_answer: {db_count_answer}, answers_list: {answers_list}")
+
+                    # Проверяем соответствие количества
+                    expected_count = int(db_count_answer)
+                    if len(answers_list) < expected_count:
+                        # Дополняем пустыми вариантами, если не хватает
+                        while len(answers_list) < expected_count:
+                            answers_list.append("Ответ не задан")
+
+                    # Создаём клавиатуру
+                    builder = InlineKeyboardBuilder()
+                    for i in range(1, expected_count + 1):
+                        builder.button(
+                            text=f"Вариант {answers_list[i-1]}",
+                            callback_data=f"btn_{i}"
+                        )
                     builder.adjust(1)
                     await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:

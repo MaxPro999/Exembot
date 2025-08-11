@@ -57,10 +57,10 @@ class TestManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code_member INTEGER NOT NULL,
                 question TEXT NOT NULL,
-                count_answer TEXT NOT NULL,
-                id_answer_true TEXT NOT NULL,
+                answer_true TEXT NOT NULL,
                 answer TEXT NOT NULL,
-                FIO TEXT NOT NULL
+                FIO TEXT NOT NULL,
+                result TEXT NOT NULL
             )
         """)
 

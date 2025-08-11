@@ -31,7 +31,12 @@
             <h2>Ваши тесты</h2>
             <ul class="tests-list">
                 {% for test in tests %}
-                    <li>{{ test }}</li>
+                    {% set test_id = test.split('@')[-1] %}
+                    <li>
+                        <a href="{{ url_for('download_results', test_id=test_id) }}" class="test-link" title="Скачать результаты">
+                            {{ test }}
+                        </a>
+                    </li>
                 {% endfor %}
             </ul>
         </section>

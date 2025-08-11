@@ -4,7 +4,10 @@ from flask import Flask, render_template, request, redirect, send_from_directory
 from werkzeug.utils import secure_filename
 from auth import AuthManager
 from test_manager import TestManager  # Убедись, что test_manager.py существует
-
+import sqlite3
+from flask import Response, abort
+import csv
+from io import StringIO
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-secret-key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -15,6 +18,51 @@ app.config['ALLOWED_EXTENSIONS'] = {'csv', 'xlsx', 'xls'}
 auth_manager = AuthManager()
 test_manager = None
 
+
+@app.route('/download-results/<test_id>')
+def download_results(test_id):
+    # Проверка: test_id должен быть числом
+    if not test_id.isdigit():
+        abort(400, "Некорректный ID теста")
+
+    table_name = f"Questions{test_id}_result"
+    db_path = "autoservis_users.db"
+
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Проверим, существует ли таблица
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
+        if not cursor.fetchone():
+            abort(404, f"Результаты для теста {test_id} не найдены")
+
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Определяем заголовки
+        columns = rows[0].keys() if rows else ['id', 'code_member', 'question', 'answer_true', 'answer', 'FIO','result']
+
+    except sqlite3.Error as e:
+        abort(500, f"Ошибка базы данных: {e}")
+
+    # Формируем CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(columns)
+    for row in rows:
+        writer.writerow(row)
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=results_test_{test_id}.csv"
+        }
+    )
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
