@@ -1,6 +1,10 @@
 import sqlite3
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
+# Загружаем переменные окружения из файла .env
+load_dotenv()
 from aiogram import Bot, Dispatcher, types, F, Router
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -73,7 +77,7 @@ async def start_handler(msg: Message):
     print("Текущий список пользователей:", users)
 
 
-# === НОВЫЙ: Обработчик нажатий на inline-кнопки (вместо устаревшего button_handler) ===
+# === Исправленный callback_query_handler ===
 @router.callback_query(F.data.startswith("btn_"))
 async def callback_query_handler(callback_query: types.CallbackQuery):
     global users
@@ -104,30 +108,50 @@ async def callback_query_handler(callback_query: types.CallbackQuery):
     sql = db.select_sql(f"SELECT * FROM Questions{id_test}")
     correct = False
     current_question_text = ""
+    correct_answer_text = ""  # Текст правильного ответа
 
     for row in sql:
         db_id = row[0]
         db_question = row[1]
         db_count_answer = row[2]
         db_id_answer_true = row[3]
-        # db_answer = row[4]  # не используется для выбора из кнопок
+        db_answer = row[4]  # Все варианты ответов
 
         if question == db_id:
             current_question_text = db_question
             # Проверяем, совпадает ли номер кнопки с правильным ответом
             if str(db_id_answer_true) == button_num:
                 correct = True
+                
+            # Извлекаем текст правильного ответа для сохранения в БД
+            if db_count_answer != "1":
+                # Для вопросов с вариантами ответов
+                # db_answer содержит "1: текст1; 2: текст2" и т.д.
+                answers_list = db_answer.split('; ')
+                try:
+                    # Ищем ответ по номеру правильного варианта
+                    for ans in answers_list:
+                        if ans.startswith(f"{db_id_answer_true}:"):
+                            correct_answer_text = ans.split(":", 1)[1].strip()
+                            break
+                except:
+                    correct_answer_text = db_id_answer_true
+            else:
+                # Для открытых вопросов
+                correct_answer_text = db_answer
             break
 
     db.close_db()
 
     # Записываем результат в БД
     result_text = "Верно" if correct else "Неверно"
+    user_answer_text = button_num  # Сохраняем номер выбранного варианта
+    
     db = connect_db('autoservis_users.db')
     db.select_sql(
         f"INSERT INTO 'Questions{id_test}_result' "
         f"(question, answer_true, answer, result, FIO, code_member) "
-        f"VALUES('{current_question_text}', '{db_id_answer_true}', '{button_num}', '{result_text}', '{FIO}', '{member}');"
+        f"VALUES('{current_question_text}', '{correct_answer_text}', '{user_answer_text}', '{result_text}', '{FIO}', '{member}');"
     )
     db.close_db()
 
@@ -162,11 +186,18 @@ async def callback_query_handler(callback_query: types.CallbackQuery):
         # Если нашли следующий вопрос и он в пределах количества
         if question == db_id and question <= count_question:
             if db_count_answer != "1":
-                db_answer=db_answer.split('; \n')
                 # Создаём новую клавиатуру (важно: не глобальную!)
                 builder = InlineKeyboardBuilder()
+                # Разбираем варианты ответов
+                answers_list = db_answer.split('; ')
                 for i in range(1, int(db_count_answer) + 1):
-                    builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
+                    # Ищем текст варианта ответа
+                    answer_text = f"Вариант {i}"
+                    for ans in answers_list:
+                        if ans.startswith(f"{i}:"):
+                            answer_text = ans.split(":", 1)[1].strip()
+                            break
+                    builder.button(text=f"{i}. {answer_text}", callback_data=f"btn_{i}")
                 builder.adjust(1)  # Каждая кнопка — на новой строке
 
                 # Отправляем вопрос с кнопками
@@ -189,7 +220,6 @@ async def callback_query_handler(callback_query: types.CallbackQuery):
         await callback_query.message.answer("✅ Тест завершён! Спасибо за участие.")
         users[user_index][3] = False  # start_test = False
         users[user_index][4] = False  # answer = False
-
 
 # === Основной обработчик сообщений: /continue и обычные сообщения ===
 @router.message(Command("continue"))
@@ -277,7 +307,8 @@ async def message_handler(msg: Message):
         await msg.answer("📝 Введите ваше ФИО:")
         takeFIO = True
 
-    # === Этап 3: Прохождение теста (обработка ответов) ===
+    # === Исправленный фрагмент в message_handler ===
+    # Этап 3: Прохождение теста (обработка ответов) ===
     elif start_test and answer:
         # Обработка текстового ответа (если тип вопроса — открытый)
         msgnew = msg.text.replace("\.", ".").replace("\-", "-").replace("\+", "+").replace("\*", "*")
@@ -295,15 +326,19 @@ async def message_handler(msg: Message):
                 # Проверка ответа
                 is_correct = False
                 if db_count_answer != "1":
-                    db_answer=db_answer.split('; \n')
+                    # Для вопросов с вариантами ответов
+                    # db_answer содержит что-то вроде "1: вариант1; 2: вариант2"
+                    # db_id_answer_true содержит номер правильного ответа, например "1"
+                    # Нужно извлечь текст правильного ответа и сравнить с выбором пользователя
                     builder = InlineKeyboardBuilder() 
                     for i in range(1, int(db_count_answer) + 1):
-                        builder.button(text=f"Вариант {str(db_answer[i-1])}", callback_data=f"btn_{i}")
+                        builder.button(text=f"Вариант {i}", callback_data=f"btn_{i}")
                     builder.adjust(1)
                     await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:
                     # Это открытый вопрос — сравниваем текст
-                    if str(db_answer).lower() == msgnew.lower():
+                    # Для открытых вопросов db_answer содержит сам текст ответа
+                    if str(db_answer).lower().strip() == msgnew.lower().strip():
                         is_correct = True
 
                 # Сохраняем результат
@@ -322,6 +357,7 @@ async def message_handler(msg: Message):
         db.close_db()
 
     # === Этап 4: Показ следующего вопроса ===
+    # === Исправленная часть в message_handler для отображения следующего вопроса ===
     if start_test and not answer and question <= count_question:
         db = connect_db('autoservis_users.db')
         sql = db.select_sql(f"SELECT * FROM Questions{id_test}")
@@ -338,26 +374,18 @@ async def message_handler(msg: Message):
 
                 # Если вопрос с выбором — показываем кнопки
                 if db_count_answer != "1":
-                    # Разделяем по точке с запятой, убираем пробелы и пустые строки
-                    answers_list = [ans.strip() for ans in db_answer.split(';') if ans.strip()]
-
-                    # Логируем для проверки
-                    print(f"[DEBUG] db_count_answer: {db_count_answer}, answers_list: {answers_list}")
-
-                    # Проверяем соответствие количества
-                    expected_count = int(db_count_answer)
-                    if len(answers_list) < expected_count:
-                        # Дополняем пустыми вариантами, если не хватает
-                        while len(answers_list) < expected_count:
-                            answers_list.append("Ответ не задан")
-
                     # Создаём клавиатуру
                     builder = InlineKeyboardBuilder()
-                    for i in range(1, expected_count + 1):
-                        builder.button(
-                            text=f"Вариант {answers_list[i-1]}",
-                            callback_data=f"btn_{i}"
-                        )
+                    # Разбираем варианты ответов
+                    answers_list = db_answer.split('; ')
+                    for i in range(1, int(db_count_answer) + 1):
+                        # Ищем текст варианта ответа
+                        answer_text = f"Вариант {i}"
+                        for ans in answers_list:
+                            if ans.startswith(f"{i}:"):
+                                answer_text = ans.split(":", 1)[1].strip()
+                                break
+                        builder.button(text=f"{i}. {answer_text}", callback_data=f"btn_{i}")
                     builder.adjust(1)
                     await msg.answer("Выберите ответ:", reply_markup=builder.as_markup())
                 else:
@@ -382,8 +410,13 @@ async def message_handler(msg: Message):
 # === Запуск бота ===
 async def main():
     global bot
+    # Получаем токен из переменной окружения
+    token = os.environ.get('BOT_TOKEN')
+    if not token:
+        raise ValueError("Необходимо установить переменную окружения BOT_TOKEN")
+    
     bot = Bot(
-        token='7728863257:AAFiNfCtlIDN-DN9IN6WyIMbTAo8lVF7lqI',
+        token=token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher(storage=MemoryStorage())

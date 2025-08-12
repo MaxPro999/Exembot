@@ -204,50 +204,34 @@ def download_codes():
     if 'user_id' not in session or 'generated_codes' not in session:
         flash('Нет кодов для скачивания', 'danger')
         return redirect(url_for('main'))
+    
     try:
-        import tempfile
+        import io
         import csv
+        
         codes = session['generated_codes']
-        fd, path = tempfile.mkstemp(suffix='.csv', encoding='utf-8')
-        with os.fdopen(fd, 'w', newline='', encoding='utf-8') as tmp:
-            # Добавляем BOM для корректного открытия в Excel
-            tmp.write('\ufeff')
-            writer = csv.writer(tmp, delimiter=';')
-            writer.writerow(['Номер', 'Код'])
-            for i, code in enumerate(codes, 1):
-                writer.writerow([i, code])
+        
+        # Создаем CSV в памяти
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';')
+        writer.writerow(['Номер', 'Код'])
+        for i, code in enumerate(codes, 1):
+            writer.writerow([i, code])
+        
+        # Конвертируем в байты с BOM для Excel
+        mem = io.BytesIO()
+        mem.write(output.getvalue().encode('utf-8-sig'))
+        mem.seek(0)
+        
         return send_file(
-            path,
+            mem,
             as_attachment=True,
             download_name='access_codes.csv',
             mimetype='text/csv'
-            # ❌ НЕТ encoding здесь
         )
     except Exception as e:
         flash(f'Ошибка генерации файла: {str(e)}', 'danger')
         return redirect(url_for('main'))
-    finally:
-        try:
-            os.remove(path)
-        except:
-            pass
-
-@app.route('/download_template/<file_type>')
-def download_template(file_type):
-    try:
-        templates_dir = os.path.join(app.root_path, 'static', 'templates')
-        if file_type == 'csv':
-            filename = 'test_template.csv'
-        elif file_type == 'xlsx':
-            filename = 'test_template.xlsx'
-        else:
-            flash('Неподдерживаемый формат', 'danger')
-            return redirect(url_for('main'))
-        return send_from_directory(templates_dir, filename, as_attachment=True)
-    except Exception as e:
-        flash(f'Ошибка шаблона: {str(e)}', 'danger')
-        return redirect(url_for('main'))
-
 @app.route('/logout')
 def logout():
     session.clear()

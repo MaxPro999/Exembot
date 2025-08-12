@@ -69,8 +69,8 @@ def read_test_file(filepath):
                 raise ValueError(f"Строка {idx+1}: Вопрос должен быть непустым текстом")
             
             # Проверка количества ответов
-            if pd.isna(row['answer_count']) or not (1 <= row['answer_count'] <= 4):
-                raise ValueError(f"Строка {idx+1}: Количество ответов должно быть от 1 до 4")
+            if pd.isna(row['answer_count']) or not (1 <= row['answer_count']):
+                raise ValueError(f"Строка {idx+1}: Количество ответов должно быть от 1")
 
             answer_count = int(row['answer_count'])
             
