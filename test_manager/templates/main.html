@@ -33,9 +33,21 @@
                 {% for test in tests %}
                     {% set test_id = test.split('@')[-1] %}
                     <li>
-                        <a href="{{ url_for('download_results', test_id=test_id) }}" class="test-link" title="Скачать результаты">
-                            {{ test }}
-                        </a>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <a href="{{ url_for('download_results', test_id=test_id) }}" class="test-link" title="Скачать результаты">
+                                    {{ test }}
+                                </a>
+                            </div>
+                            <div>
+                                <form method="POST" action="{{ url_for('close_test', test_id=test_id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-secondary" onclick="return confirm('Вы уверены, что хотите закрыть этот тест?')">Закрыть</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('delete_test', test_id=test_id) }}" style="display: inline;">
+                                    <button type="submit" class="btn" onclick="return confirm('Вы уверены, что хотите удалить этот тест? Это действие необратимо!')">Удалить</button>
+                                </form>
+                            </div>
+                        </div>
                     </li>
                 {% endfor %}
             </ul>
@@ -56,5 +68,28 @@
         </div>
     </div>
     
+    <script>
+        // Добавим подтверждение для критических операций
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteButtons = document.querySelectorAll('form[action*="delete-test"] button');
+            const closeButtons = document.querySelectorAll('form[action*="close-test"] button');
+            
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    if (!confirm('Вы уверены, что хотите удалить этот тест? Это действие необратимо!')) {
+                        e.preventDefault();
+                    }
+                });
+            });
+            
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    if (!confirm('Вы уверены, что хотите закрыть этот тест? После закрытия к тесту нельзя будет получить доступ по кодам.')) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

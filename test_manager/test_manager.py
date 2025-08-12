@@ -89,3 +89,53 @@ class TestManager:
             )
             codes.append(code)
         return codes
+
+    def delete_test(self, test_id):
+        """Удаление теста и всех связанных данных"""
+        try:
+            # Проверяем, что тест принадлежит пользователю
+            test = self.db.query(
+                "SELECT id FROM table_tests WHERE id = ? AND iduser = ?",
+                (test_id, self.user_id)
+            )
+            
+            if not test:
+                return False, "Тест не найден или у вас нет прав на его удаление"
+            
+            # Удаляем таблицы с вопросами и результатами
+            self.db.execute(f"DROP TABLE IF EXISTS Questions{test_id}")
+            self.db.execute(f"DROP TABLE IF EXISTS Questions{test_id}_result")
+            
+            # Удаляем коды доступа
+            self.db.execute("DELETE FROM Codes_members WHERE idtest = ?", (test_id,))
+            
+            # Удаляем сам тест
+            self.db.execute("DELETE FROM table_tests WHERE id = ?", (test_id,))
+            
+            return True, "Тест успешно удален"
+        except Exception as e:
+            logging.exception("Ошибка удаления теста")
+            return False, f"Ошибка удаления теста: {str(e)}"
+
+    def close_test(self, test_id):
+        """Закрытие теста (деактивация кодов доступа)"""
+        try:
+            # Проверяем, что тест принадлежит пользователю
+            test = self.db.query(
+                "SELECT id FROM table_tests WHERE id = ? AND iduser = ?",
+                (test_id, self.user_id)
+            )
+            
+            if not test:
+                return False, "Тест не найден или у вас нет прав на его закрытие"
+            
+            # Помечаем все коды доступа как использованные
+            self.db.execute(
+                "UPDATE Codes_members SET used = 1 WHERE idtest = ?", 
+                (test_id,)
+            )
+            
+            return True, "Тест успешно закрыт. Коды доступа деактивированы."
+        except Exception as e:
+            logging.exception("Ошибка закрытия теста")
+            return False, f"Ошибка закрытия теста: {str(e)}"

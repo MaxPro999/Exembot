@@ -34,7 +34,7 @@ def download_results(test_id):
         cursor = conn.cursor()
 
         # Проверим, существует ли таблица
-        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
         if not cursor.fetchone():
             abort(404, f"Результаты для теста {test_id} не найдены")
 
@@ -63,6 +63,49 @@ def download_results(test_id):
             "Content-Disposition": f"attachment; filename=results_test_{test_id}.csv"
         }
     )
+
+@app.route('/delete-test/<test_id>', methods=['POST'])
+def delete_test(test_id):
+    """Удаление теста"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if not test_id.isdigit():
+        flash('Некорректный ID теста', 'danger')
+        return redirect(url_for('main'))
+    
+    try:
+        success, msg = test_manager.delete_test(int(test_id))
+        if success:
+            flash(msg, 'success')
+        else:
+            flash(msg, 'danger')
+    except Exception as e:
+        flash(f'Ошибка удаления теста: {str(e)}', 'danger')
+    
+    return redirect(url_for('main'))
+
+@app.route('/close-test/<test_id>', methods=['POST'])
+def close_test(test_id):
+    """Закрытие теста"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if not test_id.isdigit():
+        flash('Некорректный ID теста', 'danger')
+        return redirect(url_for('main'))
+    
+    try:
+        success, msg = test_manager.close_test(int(test_id))
+        if success:
+            flash(msg, 'success')
+        else:
+            flash(msg, 'danger')
+    except Exception as e:
+        flash(f'Ошибка закрытия теста: {str(e)}', 'danger')
+    
+    return redirect(url_for('main'))
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -232,6 +275,23 @@ def download_codes():
     except Exception as e:
         flash(f'Ошибка генерации файла: {str(e)}', 'danger')
         return redirect(url_for('main'))
+
+@app.route('/download_template/<file_type>')
+def download_template(file_type):
+    try:
+        templates_dir = os.path.join(app.root_path, 'static', 'templates')
+        if file_type == 'csv':
+            filename = 'test_template.csv'
+        elif file_type == 'xlsx':
+            filename = 'test_template.xlsx'
+        else:
+            flash('Неподдерживаемый формат', 'danger')
+            return redirect(url_for('main'))
+        return send_from_directory(templates_dir, filename, as_attachment=True)
+    except Exception as e:
+        flash(f'Ошибка шаблона: {str(e)}', 'danger')
+        return redirect(url_for('main'))
+
 @app.route('/logout')
 def logout():
     session.clear()
